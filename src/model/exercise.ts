@@ -1,7 +1,7 @@
 import { nextRandom, seedFrom } from '../engine/rng'
 import { createAreaNode, createBuildingNode, createMeta } from './factory'
 import type { ProjectState } from './schema'
-import type { AreaNode, BuildingNode, Terrain } from './types'
+import type { AreaNode, BuildingNode, GuideStep, Terrain } from './types'
 
 /**
  * Exercise: a generated battlefield. Only the ground is fixed (areas, terrain, the river,
@@ -54,6 +54,7 @@ export function generateExercise(seed: string): ProjectState {
   const baseRow = Math.floor(rand() * ROWS)
 
   const nodes: (AreaNode | BuildingNode)[] = []
+  let castleId = ''
   for (let c = 0; c < COLS; c++) {
     for (let r = 0; r < ROWS; r++) {
       const isBase = c === 0 && r === baseRow
@@ -69,7 +70,9 @@ export function generateExercise(seed: string): ProjectState {
       const area = createAreaNode(nodes.filter((n) => n.type === 'area').length, { x, y }, { name, terrain, front: c === COLS - 1, locked: true }, { width: w, height: h })
       nodes.push(area)
       if (isBase) {
-        nodes.push(createBuildingNode('castello', { x: Math.round(w / 2 - 98), y: Math.round(h / 2 - 20) }, { name }, area.id))
+        const castle = createBuildingNode('castello', { x: Math.round(w / 2 - 98), y: Math.round(h / 2 - 20) }, { name }, area.id)
+        nodes.push(castle)
+        castleId = castle.id
       }
     }
   }
@@ -80,6 +83,7 @@ export function generateExercise(seed: string): ProjectState {
 
   return {
     meta: createMeta({
+      guide: guideFor(castleId, enemyLand.id, nodes.filter((n) => n.type === 'area' && n.data.front).map((n) => n.id)),
       name: `Esercitazione ${seed}`,
       description: `Terreno generato (seme ${seed}): aree, fiume e territorio nemico sono fissi. Costruisci la tua logistica — magazzini, villaggi, strade, ponti, reparti — poi lancia gli attacchi dal pannello Test o col tasto destro su un’area e guarda come regge.`,
     }),
@@ -88,4 +92,40 @@ export function generateExercise(seed: string): ProjectState {
     units: [],
     enemies: [],
   }
+}
+
+function guideFor(castle: string, enemy: string, front: string[]): GuideStep[] {
+  return [
+    {
+      title: 'Il terreno è fisso',
+      text: 'Aree, fiume e territorio nemico sono generati e non si spostano (tag “fisso”). Tutto il resto è tuo: magazzini, villaggi, pozzi, strade, ponti, reparti. Lo stesso seme ridà lo stesso terreno, così puoi rifare l’esercitazione e confrontare.',
+    },
+    {
+      title: 'Parti dal castello',
+      text: 'Il castello ha scorte e 20 carri, ma non basta per sempre. Trascina dalla palette a sinistra gli edifici dentro le aree: un granaio, un villaggio per le requisizioni, un pozzo o una presa sul fiume per l’acqua.',
+      focus: [castle],
+    },
+    {
+      title: 'Collega tutto',
+      text: 'Trascina dal bordo di un edificio a un altro per creare una strada: il tipo (strada, sterrato, sentiero, guado) si sceglie da solo in base al terreno e si cambia nelle Proprietà. Per attraversare il fiume servono un ponte o un guado.',
+    },
+    {
+      title: 'Schiera l’esercito',
+      text: 'Le aree a est sono il fronte: mettici una Posizione di schieramento e, nelle sue Proprietà, aggiungi i reparti. Un accampamento e un ospedale dietro la linea fanno la differenza quando arrivano i feriti.',
+      focus: front,
+    },
+    {
+      title: 'Controlla prima di partire',
+      text: 'La scheda Verifiche segnala posti senza fornitori, carri insufficienti, colli di bottiglia e punti critici. Sistemane il più possibile, poi premi Avvia e lascia girare qualche giorno: regge?',
+    },
+    {
+      title: 'Metti alla prova',
+      text: 'Tasto destro su un’area → Attacco: una schiera parte dal territorio nemico e ci marcia contro. Oppure trascina una “Schiera nemica” nel territorio nemico e scegli bersaglio e turno. Prova il bosco, il fiume, la retrovia: guarda cosa si rompe.',
+      focus: [enemy],
+    },
+    {
+      title: 'Il rapporto',
+      text: 'Il pannello Test lancia scenari completi (razzie, assalto, sabotaggio, assedio…) e scrive un rapporto. Salvane uno, migliora la logistica, rilancia e confronta: così vedi come risponde la tua civiltà.',
+    },
+  ]
 }

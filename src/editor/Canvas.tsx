@@ -42,7 +42,10 @@ export function Canvas() {
     if (focusRequest === 0) return
     // Wait a moment: right after a project loads the nodes are not measured yet and fitView would miss them.
     const id = setTimeout(() => {
-      const selected = useStore.getState().nodes.filter((n) => n.selected).map((n) => ({ id: n.id }))
+      const st = useStore.getState()
+      // A selected route is framed through its two ends.
+      const ends = st.edges.filter((e) => e.selected).flatMap((e) => [e.source, e.target])
+      const selected = [...st.nodes.filter((n) => n.selected).map((n) => n.id), ...ends].map((id) => ({ id }))
       fitView({ nodes: selected.length ? selected : undefined, padding: selected.length ? 0.8 : 0.12, duration: 350, maxZoom: 1.3 })
     }, 80)
     return () => clearTimeout(id)

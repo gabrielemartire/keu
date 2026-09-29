@@ -1,3 +1,4 @@
+import type { SimEvent } from '../engine/events'
 import type { Edge, Node } from '@xyflow/react'
 
 /** Materials that are stored, carried by carts and consumed. Wounded men travel too, but are tracked apart. */
@@ -139,6 +140,17 @@ export interface ProjectMeta {
   createdAt: string
   updatedAt: string
   logistics: LogisticsSettings
+  /** Guided walkthrough shown on the map (demos and exercises). */
+  guide?: GuideStep[]
+}
+
+export interface GuideStep {
+  title: string
+  text: string
+  /** Elements to select and frame with “Mostrami”. */
+  focus?: string[]
+  /** A change of situation the reader can trigger from the step. */
+  action?: { label: string; event: SimEvent }
 }
 
 export type BuildingNode = Node<BuildingData, 'building'>

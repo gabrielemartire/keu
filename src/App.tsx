@@ -10,6 +10,7 @@ import { ChecksPanel, SituationPanel, TestPanel } from './ui/SidePanels'
 import { TopBar } from './ui/TopBar'
 import { BalanceView, InventoryView, LogView, RoutesView, UnitsView } from './ui/TableViews'
 import { ReportView } from './ui/ReportView'
+import { Guide } from './ui/Guide'
 import { MessageDialog, NewProjectDialog } from './ui/Dialogs'
 import { Icon } from './ui/Icon'
 import { TEMPLATES } from './model/templates'
@@ -105,6 +106,7 @@ function Shell() {
         {view === 'mappa' && <Palette />}
         <section className="center">
           {view === 'mappa' && <Canvas />}
+          {view === 'mappa' && <Guide />}
           {view === 'inventario' && <InventoryView />}
           {view === 'reparti' && <UnitsView />}
           {view === 'percorsi' && <RoutesView />}

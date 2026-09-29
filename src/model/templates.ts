@@ -1,7 +1,7 @@
 import { createAreaNode, createBuildingNode, createEnemy, createMeta, createRouteEdge, createUnit } from './factory'
 import { generateExercise, randomSeed } from './exercise'
 import type { ProjectState } from './schema'
-import type { AreaData, AreaNode, BuildingData, BuildingKind, BuildingNode, RouteData, RouteEdge, UnitDef } from './types'
+import type { GuideStep, AreaData, AreaNode, BuildingData, BuildingKind, BuildingNode, RouteData, RouteEdge, UnitDef } from './types'
 
 export interface Template {
   id: string
@@ -25,7 +25,11 @@ function builder() {
     nodes.push(b)
     return b.id
   }
-  const road = (a: string, b: string, patch: Partial<RouteData> = {}) => edges.push(createRouteEdge(a, b, patch))
+  const road = (a: string, b: string, patch: Partial<RouteData> = {}) => {
+    const e = createRouteEdge(a, b, patch)
+    edges.push(e)
+    return e.id
+  }
   return { nodes, edges, area, bld, road }
 }
 
@@ -71,7 +75,7 @@ function demo(): ProjectState {
   road(lumber, fletcher, { kind: 'sentiero' })
   road(lumber, forge, { kind: 'sentiero' })
   road(fletcher, depot, { kind: 'sterrato' })
-  road(depot, tents, { kind: 'ponte', name: 'Ponte sul Sarre' })
+  const bridge = road(depot, tents, { kind: 'ponte', name: 'Ponte sul Sarre' })
   road(village, salici, { kind: 'guado', name: 'Guado dei Salici' })
   road(tents, hq)
   road(hq, hospital)
@@ -99,8 +103,47 @@ function demo(): ProjectState {
     createEnemy({ name: 'Esercito del Marchese', type: 'fanteria', men: 2200, originAreaId: foe, targetAreaId: hill, behavior: 'avanza', startTurn: 3 }),
     createEnemy({ name: 'Cavalieri del Marchese', type: 'cavalleria', men: 350, originAreaId: foe, targetAreaId: left, behavior: 'tieni', startTurn: 4 }),
   ]
+  const guide: GuideStep[] = [
+    {
+      title: 'Una battaglia completa',
+      text: 'Circa 3.000 uomini su sei aree. La base (Montalto) è oltre il fiume Sarre, il campo di San Vito è al centro, il fronte è sul Colle del Corvo e sulla Piana dei Mulini. Il Marchese arriva da est.',
+    },
+    {
+      title: 'La filiera delle frecce',
+      text: 'Nel bosco il taglialegna produce legname, il frecciaio lo trasforma in frecce, la fucina in armi. Se il bosco cade o la strada si interrompe, le frecce smettono di arrivare e gli arcieri valgono un terzo.',
+      focus: [lumber, fletcher, forge],
+    },
+    {
+      title: 'Quanti carri servono',
+      text: 'In Proprietà della battaglia, “A colpo d’occhio” confronta i carri che servono con quelli che hai. La vista “Bilancio flussi” mostra ogni flusso: da dove parte, dove va, quanti kg a turno.',
+    },
+    {
+      title: 'Il ponte critico',
+      text: 'Tutto ciò che viene dalla base passa sul Ponte sul Sarre. C’è un’alternativa, il guado dei Salici, molto più lunga.',
+      focus: [bridge],
+    },
+    {
+      title: 'Avvia: arriva il Marchese',
+      text: 'Al turno 3 l’Esercito del Marchese (2.200 uomini) marcia sul Colle, al turno 4 i suoi cavalieri sulla Piana. Guarda le pedine rosse attraversare la mappa, poi le barre di controllo delle aree.',
+      focus: [foe],
+    },
+    {
+      title: 'Brucia l’armeria',
+      text: 'Nel pieno dello scontro, un incendio all’Armeria: dove prenderanno ora frecce e armi? Guarda i convogli cambiare origine.',
+      focus: [depot],
+      action: { label: 'Incendia l’Armeria', event: { type: 'incendio', nodeId: depot } },
+    },
+    {
+      title: 'Il test completo',
+      text: 'Nel pannello Test lancia “Battaglia campale completa”: assalto frontale, razzie sulle linee, pioggia e ponte distrutto. Il rapporto elenca punti deboli e suggerimenti; salvane uno come riferimento e confronta le tue modifiche.',
+    },
+    {
+      title: 'Cosa ti insegna',
+      text: 'In una battaglia vera i problemi si sommano: un ponte, una pioggia, un magazzino bruciato. Keu serve a trovare prima quale di questi ti fa crollare, e quanto margine hai. Quando sei pronto, prova un’Esercitazione: il terreno è nuovo e la logistica la costruisci tu.',
+    },
+  ]
   return {
-    meta: createMeta({ name: 'Battaglia del Colle del Corvo', description: 'Esempio: un esercito di circa 3.000 uomini difende il colle; la base è oltre il fiume Sarre.' }),
+    meta: createMeta({ guide, name: 'Battaglia del Colle del Corvo', description: 'Esempio: un esercito di circa 3.000 uomini difende il colle; la base è oltre il fiume Sarre.' }),
     nodes,
     edges,
     units,
@@ -115,9 +158,42 @@ function primoConvoglio(): ProjectState {
   const front = area(1000, 0, 460, 220, { name: 'Fronte', terrain: 'collina', front: true })
   const castle = bld(rear, 'castello', 130, 80, 'Castello')
   const line = bld(front, 'schieramento', 130, 80, 'Linea', { stock: { viveri: 1200, acqua: 1500, foraggio: 0, frecce: 2000, armi: 20, legname: 200 } })
-  road(castle, line, { kind: 'sterrato', name: 'Strada del castello' })
+  const strada = road(castle, line, { kind: 'sterrato', name: 'Strada del castello' })
+  const guide: GuideStep[] = [
+    {
+      title: 'La battaglia più piccola possibile',
+      text: 'Un castello pieno di scorte, una linea con 800 fanti a circa 25 km, una sola strada. Keu serve a rispondere a una domanda: le scorte arrivano dove servono, in tempo? Qui la risposta è facile, ed è il punto di partenza per capire tutto il resto.',
+    },
+    {
+      title: 'Leggi la linea',
+      text: 'Le barrette sotto “Linea” sono le scorte: viveri, acqua, frecce, armi, legname (verde = piena, rossa = vuota). Il badge rosso in alto a destra è l’autonomia: quante ore resiste con quello che ha. Ogni posto cerca di tenere 2 giorni di scorte: è la “Scorta obiettivo” nelle proprietà della battaglia.',
+      focus: [line],
+    },
+    {
+      title: 'Leggi la strada',
+      text: 'L’etichetta sulla strada dice km, ore di carro e carri a turno su capacità. Un carro a buoi va piano: 25 km di sterrato sono circa 10 ore, quasi due turni. Un turno dura 6 ore (alba, giorno, sera, notte).',
+      focus: [strada],
+    },
+    {
+      title: 'Premi Avvia',
+      text: 'Premi Avvia (o la barra spaziatrice). Nessuno dà ordini: la linea consuma, scende sotto l’obiettivo, e il castello carica i carri da solo. Il pallino che si muove è un convoglio: il colore è la risorsa principale, il numero sono i carri.',
+    },
+    {
+      title: 'Cosa notare',
+      text: 'Il ritardo. La linea ordina ora ma riceve due turni dopo: nel frattempo continua a consumare. Apri la scheda Situazione per la cronaca e la vista Inventario per i numeri turno per turno.',
+    },
+    {
+      title: 'Prova tu',
+      text: 'Premi Azzera, poi trascina la Linea molto più lontano, oppure seleziona la strada e cambiala in “sentiero”. Rilancia: le ore di viaggio crescono e l’autonomia della linea scende a ogni convoglio.',
+      focus: [strada],
+    },
+    {
+      title: 'Cosa ti insegna',
+      text: 'La logistica è una corsa tra consumo e distanza. Se il viaggio (in ore) è più lungo dell’autonomia della linea, la linea resta a secco anche con il castello pieno. Passa al livello 2: tra la base e il fronte c’è un fiume.',
+    },
+  ]
   return {
-    meta: createMeta({ name: 'Primo convoglio', description: 'Livello 1: un castello rifornisce una linea con 800 fanti. Premi Avvia e guarda i carri partire quando le scorte della linea scendono sotto i 2 giorni.' }),
+    meta: createMeta({ name: 'Primo convoglio', description: 'Livello 1: un castello rifornisce una linea con 800 fanti. Premi Avvia e guarda i carri partire quando le scorte della linea scendono sotto i 2 giorni.', guide }),
     nodes,
     edges,
     units: [createUnit('fanteria', line, { name: 'Fanti', men: 800, morale: 75 })],
@@ -138,11 +214,48 @@ function ponteSulFiume(): ProjectState {
   const hospital = bld(front, 'ospedale', 150, 200, 'Ospedale da campo')
   road(castle, granary)
   road(castle, water, { kind: 'strada' })
-  road(water, line, { kind: 'ponte', name: 'Ponte vecchio' })
-  road(granary, hospital, { kind: 'guado', name: 'Guado basso' })
+  const bridge = road(water, line, { kind: 'ponte', name: 'Ponte vecchio' })
+  const ford = road(granary, hospital, { kind: 'guado', name: 'Guado basso' })
   road(line, hospital, { kind: 'sentiero' })
+  const guide: GuideStep[] = [
+    {
+      title: 'Un fiume in mezzo',
+      text: 'Retrovia, fiume, fronte. Tutto ciò che mangia e combatte al fronte deve attraversare il Sarre. Ci sono due modi: il Ponte vecchio (veloce) e il Guado basso (lento, e con la pioggia quasi impraticabile).',
+    },
+    {
+      title: 'Il punto critico',
+      text: 'Il ponte è l’unico passaggio veloce. Spunta “Punti critici” nella barra in alto: Keu evidenzia i percorsi e gli edifici che, se cadono, spezzano la rete.',
+      focus: [bridge],
+    },
+    {
+      title: 'Da dove arriva cosa',
+      text: 'Avvia la simulazione. L’acqua della linea arriva dalla Presa sul fiume, viveri e frecce dal castello. La vista “Bilancio flussi” in alto mostra chi rifornisce chi e quanti carri servono.',
+      focus: [water],
+    },
+    {
+      title: 'Arriva il nemico',
+      text: 'All’alba del secondo giorno (turno 5) la Fanteria del Marchese attacca il Fronte. Guarda la barra di controllo dell’area e il “rapporto di forze”. Mentre combattono, arcieri e fanti consumano frecce e armi: la linea ne ordina di più e i carri aumentano.',
+      focus: [front],
+    },
+    {
+      title: 'Taglia il ponte',
+      text: 'Premi il pulsante qui sotto (o tasto destro sul ponte → Distruggi). I convogli già in viaggio ripianificano e passano dal guado, più lento: guarda il badge di autonomia della linea scendere.',
+      focus: [bridge],
+      action: { label: 'Distruggi il ponte', event: { type: 'distruggi', routeId: bridge } },
+    },
+    {
+      title: 'E ora la pioggia',
+      text: 'Con il ponte rotto, tutto passa dal guado. Fai piovere: il guado rallenta ancora e la linea rischia di restare senz’acqua proprio mentre combatte. Segui la cronaca nella scheda Situazione.',
+      focus: [ford],
+      action: { label: 'Fai piovere 2 giorni', event: { type: 'meteo', weather: 'pioggia', turns: 8 } },
+    },
+    {
+      title: 'Cosa ti insegna',
+      text: 'Un solo passaggio è un solo punto di rottura. I rimedi si provano qui: un secondo ponte, più giorni di scorta al fronte (Scorta obiettivo), una scorta armata sulla strada contro le razzie. Premi Azzera, cambia una cosa e rilancia.',
+    },
+  ]
   return {
-    meta: createMeta({ name: 'Il ponte sul fiume', description: 'Livello 2: il ponte è la via rapida, il guado quella lenta. Dal secondo giorno il nemico attacca il fronte. Prova a distruggere il ponte (tasto destro) e guarda i carri deviare.' }),
+    meta: createMeta({ name: 'Il ponte sul fiume', description: 'Livello 2: il ponte è la via rapida, il guado quella lenta. Dal secondo giorno il nemico attacca il fronte. Prova a distruggere il ponte (tasto destro) e guarda i carri deviare.', guide }),
     nodes,
     edges,
     units: [
@@ -191,8 +304,43 @@ function dueFronti(): ProjectState {
   road(hospital, lineS, { kind: 'sterrato' })
   road(village, lineS, { kind: 'sentiero' })
 
+  const guide: GuideStep[] = [
+    {
+      title: 'Due fronti e un punto cieco',
+      text: 'Due linee da tenere, un campo al centro con comando e ospedale. Acqua e foraggio del campo arrivano dalla Valle del fiume, che però nessuno presidia. Qui si vede cosa succede quando un’area “di retrovia” resta scoperta.',
+      focus: [valley],
+    },
+    {
+      title: 'Da dove viene il nemico',
+      text: 'A est c’è il Campo nemico. Selezionalo: nelle Proprietà trovi le schiere accampate, dove attaccano e da che turno. La fanteria punta al Fronte nord (turno 4), la cavalleria leggera alla Valle del fiume (turno 5).',
+      focus: [foe],
+    },
+    {
+      title: 'Avvia e guarda la riserva',
+      text: 'I Cavalieri di riserva hanno postura “riserva”: quando un’area vicina è attaccata ci corrono da soli. Ma nella valle non ci sono scorte per loro… Tieni aperta la scheda Situazione e segui la cronaca.',
+      focus: [tents],
+    },
+    {
+      title: 'La valle cade',
+      text: 'La riserva resta senza viveri e foraggio, il morale crolla e si ritira. La valle diventa contesa, poi perduta (verso il turno 17): il nemico cattura le scorte e la cavalleria avanza sul Campo. Nessuna battaglia persa al fronte, eppure il campo è in pericolo.',
+      focus: [valley],
+    },
+    {
+      title: 'Prova tu',
+      text: 'Premi Azzera e presidia la valle: seleziona la Presa sul fiume e aggiungi un reparto, oppure costruisci un granaio nella valle così che la riserva abbia di che mangiare. Rilancia e confronta.',
+      focus: [riverWater],
+    },
+    {
+      title: 'Misura la differenza',
+      text: 'Nel pannello Test scegli “Aggiramento sul fianco” e lancia il test: ottieni un rapporto. Cambia qualcosa, rilancialo e confrontali: Keu ti dice se la modifica ha davvero aiutato (perdite, aree tenute, scorte catturate).',
+    },
+    {
+      title: 'Cosa ti insegna',
+      text: 'Il nemico non deve battere il tuo esercito: gli basta tagliarti l’acqua. Le aree da cui dipendi vanno difese, o almeno rifornite, anche se sembrano lontane dal fronte.',
+    },
+  ]
   return {
-    meta: createMeta({ name: 'Due fronti e il fiume scoperto', description: 'Livello 3: due linee da tenere e una valle senza presidio che dà acqua al campo. Dal secondo giorno la cavalleria nemica punta proprio lì.' }),
+    meta: createMeta({ guide, name: 'Due fronti e il fiume scoperto', description: 'Livello 3: due linee da tenere e una valle senza presidio che dà acqua al campo. Dal secondo giorno la cavalleria nemica punta proprio lì.' }),
     nodes,
     edges,
     units: [
