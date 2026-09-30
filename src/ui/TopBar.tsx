@@ -6,6 +6,7 @@ const VIEWS: { id: View; label: string; icon: UiIconName }[] = [
   { id: 'mappa', label: 'Mappa', icon: 'map' },
   { id: 'inventario', label: 'Inventario', icon: 'box' },
   { id: 'reparti', label: 'Reparti', icon: 'users' },
+  { id: 'nemici', label: 'Nemici', icon: 'swords' },
   { id: 'percorsi', label: 'Percorsi', icon: 'route' },
   { id: 'bilancio', label: 'Bilancio flussi', icon: 'scale' },
   { id: 'registro', label: 'Registro', icon: 'log' },

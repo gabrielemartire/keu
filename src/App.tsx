@@ -8,7 +8,7 @@ import { Palette } from './ui/Palette'
 import { Inspector } from './ui/Inspector'
 import { ChecksPanel, SituationPanel, TestPanel } from './ui/SidePanels'
 import { TopBar } from './ui/TopBar'
-import { BalanceView, InventoryView, LogView, RoutesView, UnitsView } from './ui/TableViews'
+import { BalanceView, EnemiesView, InventoryView, LogView, RoutesView, UnitsView } from './ui/TableViews'
 import { ReportView } from './ui/ReportView'
 import { Guide } from './ui/Guide'
 import { MessageDialog, NewProjectDialog } from './ui/Dialogs'
@@ -109,6 +109,7 @@ function Shell() {
           {view === 'mappa' && <Guide />}
           {view === 'inventario' && <InventoryView />}
           {view === 'reparti' && <UnitsView />}
+          {view === 'nemici' && <EnemiesView />}
           {view === 'percorsi' && <RoutesView />}
           {view === 'bilancio' && <BalanceView />}
           {view === 'registro' && <LogView />}

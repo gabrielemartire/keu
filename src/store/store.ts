@@ -20,7 +20,7 @@ import {
 } from '../model/types'
 import { absolutePosition } from '../engine/world'
 
-export type View = 'mappa' | 'inventario' | 'reparti' | 'percorsi' | 'bilancio' | 'registro' | 'rapporto'
+export type View = 'mappa' | 'inventario' | 'reparti' | 'nemici' | 'percorsi' | 'bilancio' | 'registro' | 'rapporto'
 export type SidePanel = 'proprieta' | 'verifiche' | 'situazione' | 'test'
 
 type Snapshot = ProjectState

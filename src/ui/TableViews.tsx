@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { BUILDING_INFO, POSTURE_INFO, RESOURCE_INFO, ROUTE_INFO, TURNS_PER_DAY, UNIT_INFO } from '../model/catalog'
-import { RESOURCES, type AreaNode, type BuildingNode } from '../model/types'
+import { BUILDING_INFO, PHASES, POSTURE_INFO, RESOURCE_INFO, ROUTE_INFO, TURNS_PER_DAY, UNIT_INFO } from '../model/catalog'
+import { RESOURCES, UNIT_TYPES, type AreaNode, type BuildingNode, type UnitType } from '../model/types'
+import { turnLabel, type EnemyState } from '../engine/sim'
+import { NumberInput, Select } from './controls'
 import { cartHours } from '../engine/flow'
 import { fmt, fmtDays, fmtHours, fmtQty, stockKg } from '../engine/rates'
 import { useLive } from '../live/liveStore'
@@ -423,6 +425,144 @@ export function LogView() {
       }
     >
       <LogList entries={entries} />
+    </TableShell>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+/** Where an enemy force is and what it is doing, in words. */
+function enemyWhere(e: EnemyState, turn: number, name: (id: string) => string) {
+  if (e.routed) return { text: 'in rotta', tone: 'ok' as const }
+  if (e.men <= 0) return { text: 'annientata', tone: 'ok' as const }
+  if (e.march && !e.march.arrived) return { text: `in marcia → ${name(e.march.to)} · ${fmt(e.march.km - e.march.done, 1)} km`, tone: 'warning' as const }
+  if (e.startTurn > turn) return { text: e.at ? `accampata a ${name(e.at)}` : 'non ancora in campo', tone: 'off' as const }
+  if (e.at && e.at === e.target) return { text: `attacca ${name(e.at)}`, tone: 'error' as const }
+  if (e.at) return { text: `ferma a ${name(e.at)}`, tone: 'off' as const }
+  return { text: '—', tone: 'off' as const }
+}
+
+export function EnemiesView() {
+  const enemies = useStore((s) => s.enemies)
+  const nodes = useStore((s) => s.nodes)
+  const update = useStore((s) => s.updateEnemy)
+  const remove = useStore((s) => s.removeEnemy)
+  const current = useLive((s) => s.current)
+  const world = useLive((s) => s.world)
+  const turn = current?.turn ?? 0
+  const areas = nodes.filter((n): n is AreaNode => n.type === 'area')
+  const areaOptions = areas.map((a) => ({ value: a.id, label: a.data.name }))
+  const name = (id: string) => world?.name(id) ?? '?'
+  const base = areas.find((a) => a.data.control <= -50)?.id ?? null
+  const extra = Object.values(current?.enemies ?? {}).filter((e) => !e.fromProject)
+  const men = enemies.reduce((x, e) => x + e.men, 0)
+  return (
+    <TableShell
+      title="Nemici"
+      subtitle={`${enemies.length} schiere · ${fmt(men)} uomini · ${liveSubtitle(current?.turn)}`}
+      extra={
+        <button className="btn btn-sm" onClick={() => useStore.getState().addEnemy({ originAreaId: base, name: `Schiera nemica ${enemies.length + 1}`, startTurn: 4 })}>
+          <Icon name="plus" size={13} /> Aggiungi schiera
+        </button>
+      }
+    >
+      <table className="data-table enemy-table">
+        <thead>
+          <tr>
+            <th>Schiera</th>
+            <th>Tipo</th>
+            <th className="num">Uomini</th>
+            <th>Parte da</th>
+            <th>Attacca</th>
+            <th className="num">Parte al turno</th>
+            <th>Comportamento</th>
+            <th>Adesso</th>
+            <th className="num">Uomini ora</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {enemies.map((e) => {
+            const st = current?.enemies[e.id]
+            const where = st ? enemyWhere(st, turn, name) : null
+            return (
+              <tr key={e.id}>
+                <td>
+                  <span className="cell-inline">
+                    <UnitSymbol type={e.type} hostile size={16} />
+                    <input className="input input-sm" value={e.name} onChange={(ev) => update(e.id, { name: ev.target.value })} />
+                  </span>
+                </td>
+                <td>
+                  <Select value={e.type} onChange={(type: UnitType) => update(e.id, { type })} options={UNIT_TYPES.map((t) => ({ value: t, label: UNIT_INFO[t].label }))} />
+                </td>
+                <td className="num">
+                  <NumberInput value={e.men} min={0} onChange={(v) => update(e.id, { men: v ?? 0 })} />
+                </td>
+                <td>
+                  <Select value={e.originAreaId ?? ''} onChange={(v) => update(e.id, { originAreaId: v || null })} options={[{ value: '', label: '— compare sul bersaglio —' }, ...areaOptions]} />
+                </td>
+                <td>
+                  <Select value={e.targetAreaId ?? ''} onChange={(v) => update(e.id, { targetAreaId: v || null })} options={[{ value: '', label: '— resta dov’è —' }, ...areaOptions]} />
+                </td>
+                <td className="num" title={`giorno ${turnLabel(e.startTurn).day}, ${PHASES[turnLabel(e.startTurn).phase].toLowerCase()}`}>
+                  <NumberInput value={e.startTurn} min={0} onChange={(v) => update(e.id, { startTurn: v ?? 0 })} />
+                </td>
+                <td>
+                  <Select value={e.behavior} onChange={(behavior) => update(e.id, { behavior })} options={[{ value: 'tieni', label: 'Preme' }, { value: 'avanza', label: 'Avanza' }]} />
+                </td>
+                <td>{where ? <span className={`status status-${where.tone}`}>{where.text}</span> : '—'}</td>
+                <td className="num mono">{st ? fmt(st.men) : fmt(e.men)}</td>
+                <td>
+                  <span className="cell-inline">
+                    {st?.at && (
+                      <button className="btn btn-icon" title="Mostra sulla mappa" onClick={() => goTo([st.at!])}>
+                        <Icon name="eye" size={14} />
+                      </button>
+                    )}
+                    <button className="btn btn-icon btn-danger-ghost" title="Elimina" onClick={() => remove(e.id)}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+          {extra.map((st) => {
+            const where = enemyWhere(st, turn, name)
+            return (
+              <tr key={st.id} className="muted-row">
+                <td>
+                  <span className="cell-inline">
+                    <UnitSymbol type={st.type} hostile size={16} /> {st.name} <span className="pill">scenario</span>
+                  </span>
+                </td>
+                <td>{UNIT_INFO[st.type].label}</td>
+                <td className="num mono">{fmt(st.initialMen)}</td>
+                <td>{st.at && st.march ? name(st.march.from) : '—'}</td>
+                <td>{st.target ? name(st.target) : '—'}</td>
+                <td className="num mono">{st.startTurn}</td>
+                <td>{st.behavior === 'avanza' ? 'Avanza' : 'Preme'}</td>
+                <td>
+                  <span className={`status status-${where.tone}`}>{where.text}</span>
+                </td>
+                <td className="num mono">{fmt(st.men)}</td>
+                <td />
+              </tr>
+            )
+          })}
+          {!enemies.length && !extra.length && (
+            <tr>
+              <td colSpan={10} className="muted small">
+                Nessuna schiera nemica. Aggiungila da qui, trascinala dalla palette dentro un’area, oppure durante la simulazione usa tasto destro su un’area → Attacco.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <p className="small muted table-note">
+        Una schiera resta accampata in “Parte da” fino al turno di partenza (4 turni al giorno), poi marcia in linea retta verso “Attacca” e combatte lì. <strong>Preme</strong>: resta sull’area bersaglio. <strong>Avanza</strong>: se la conquista, passa all’area vicina più importante. Si ritira quando perde il 45% degli uomini. Le righe “scenario” sono aggiunte dal pannello Test o dal tasto destro e spariscono con Azzera.
+      </p>
     </TableShell>
   )
 }
